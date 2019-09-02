@@ -65,12 +65,17 @@
 
 <body>
     <#macro summarizeEntity name entity>
-        <h2>${name}</h2>
+        <h3>${name}</h3>
         <#if entity.example??>
             <p><b>Example:</b> ${entity.example}</p>
         </#if>
         <#if entity.description??>
-            <p><b>Description:</b> ${entity.description}</p>
+            <div>
+                <div><b>Description:</b></div>
+            </div>
+            <div>
+                ${entity.description}
+            </div>
         </#if>
         <table>
             <thead>
@@ -101,7 +106,7 @@
 
                         <td>
                             <#if property.description??>
-                                <p>${property.description}</p>
+                                <div>${property.description}</div>
                             </#if>
                             <#if property.properties??>
                                 <#if (property.properties)?size!=0 >
@@ -118,12 +123,36 @@
         </table>
     </#macro>
 
-    <h1></h1>
+    <h1>${root.title}</h1>
+    <p>${root.description}</p>
+
+    <h2>Entity Definitions</h2>
     <#assign entitySummaries = root.entitySummaries>
     <#list entitySummaries as key, entitySummary>
         <@summarizeEntity name=key entity=entitySummary>
         </@summarizeEntity>
     </#list>
+
+    <h2>End Point Definitions</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>URL</th>
+                <th>Method</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                <td>Classification Query</td>
+                <td>/api/v1/curations/acmg-classification/query</td>
+                <td>POST</td>
+                <td>Perform Query for Variant Classifications.</td>
+            </tr>
+        </tbody>
+    </table>
 
 </body>
 </html>

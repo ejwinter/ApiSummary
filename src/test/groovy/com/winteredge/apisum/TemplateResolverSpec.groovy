@@ -32,26 +32,7 @@ class TemplateResolverSpec extends Specification implements ClipboardOwner {
         resolved.contains("<li>two</li>");
     }
 
-    def "resolveToString summaryized api"(){
-        given:
-        templateResolver = new TemplateResolver("template", new InputStreamReader(getClass().getResourceAsStream("/summaryTemplate.ftl")))
-
-        and:
-        Map<String, List<EntitySummary>> model = ["summaries":[
-                new EntitySummary("name", "description", [
-                        new EntitySummary("p1", "d1", []).setExample("e1").setType("string"),
-                        new EntitySummary("p2", "d2", [new EntitySummary("p2-s1", "d2", []).setExample("eg").setType("string")]).setExample("e1").setType("object")
-                ])
-        ]]
-
-        when:
-        String resolved = templateResolver.resolveToString(model)
-
-        then:
-        println resolved
-    }
-
-    def "resolveToString summaryized mxd api"(){
+    def "resolveToString summarized mxd api"(){
         given:
         templateResolver = new TemplateResolver("template", new InputStreamReader(getClass().getResourceAsStream("/summaryTemplate.ftl")))
 

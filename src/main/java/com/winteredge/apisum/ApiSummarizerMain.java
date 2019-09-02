@@ -18,7 +18,7 @@ public class ApiSummarizerMain implements Runnable {
 
     @Override
     public void run() {
-        throw new CommandLine.ParameterException(spec.commandLine(), "Missing required subcommand");
+        //throw new CommandLine.ParameterException(spec.commandLine(), "Missing required subcommand");
     }
 
     public static void main(String[] args) {

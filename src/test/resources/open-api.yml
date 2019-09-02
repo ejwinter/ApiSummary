@@ -25,6 +25,319 @@ components:
       type: http
       scheme: basic
   schemas:
+    Curation:
+      description: >
+        The foundational curation type.  TODO this is just a placeholder please enhance.
+      properties:
+        entityType:
+          description: A constent 'Comment'.  Other curation types will have different values here.
+          type: string
+          enum: ['Comment']
+        id:
+          description: A system generated identifier for the curation.
+          type: string
+          readOnly: true
+          example: '58d44a6cb17ec825d460a8d7'
+        discussion:
+          description: A set of discussions that have taken place regarding this curation.
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscussionEntry'
+        note:
+          description: A single comment about the curation by the person who created it.
+          type: string
+        additionalDetails:
+          description: Any further details that we do not have specific space for.  The keys are validated against FieldOption[curations.additionalDetails].
+          example: {"more":"stuff"}
+          additionalProperties:
+            type: string
+        phenotype:
+          description: All phenotypes that this curation had identified as affecting the proband.  FieldOption[curations.phenotypes]
+          example: ["melanoma","breast cancer"]
+          type: array
+          items:
+            type: string
+        variant:
+          description: >
+            The identifier of the variant that this curation references.  A variant is quintessential to some curation types
+            such as the AcmgClassification.
+
+            Currently there is a prefix specified for each type of variant.
+          type: string
+          example: s1212512
+        variantReferenceSet:
+          description: >
+            The reference set (i.e. chromosome) that the curation was actually submitted against.
+            A variant can have multiple reference sets but a curation is expected to be submitted against a specific one.
+            FieldOption[variants.referenceSets]
+          type: string
+          example: hg19
+        transientVariantDetails:
+          oneOf:
+            - $ref: '#/components/schemas/SimpleVariant'
+            - $ref: '#/components/schemas/LargeVariant'
+            - $ref: '#/components/schemas/BreakendVariant'
+        gene:
+          description: All genes tied to this curation.
+          example: ["apc", "mutyh"]
+          type: array
+          items:
+            type: string
+        geneDetails:
+          description: >
+            A dictionary of each gene and more details about how that gene relates to this curation.
+            The key to the dictionary should be a gene that also is in the "gene" property on the curation.
+          example:
+            {"apc":{"geneName":"apc", "impact":["loss of function"], "transcript":'nm_00038.5', "tags":["primary-event-gene"]}}
+          additionalProperties:
+            $ref: '#/components/schemas/GeneDetails'
+        callSet:
+          description: A callset uniquely identifies a call set (i.e. sample/case).
+          properties:
+            sampleId:
+              description: The sample ID as provided by the sample system.
+              example: '19-XIEQ-Q212'
+              type: string
+            sampleSystem:
+              description: A system the produced and presumably tracks the Sample ID.
+              example: 'SoftLabOrderNumber'
+              type: string
+            analysisId:
+              description: A unique identifier provided by the analysis system that identifies the analysis of the sample.
+              example: 'batchXYZ'
+              type: string
+            analysisSystem:
+              description: The system where the sample was analyzed and likely submitted the curation.
+              example: 'ngswb'
+              type: string
+            nonReportable:
+              description: >
+                Set to true if this call was not reportable else false if it was reportable.  This is odd because
+                we wanted to preserve backwards compatibility and wanted to assume all previous submissions were reportable.
+              type: boolean
+            sampleTags:
+              description: Any tag put on the sample to indicate its intent.  Was it a control sample?  A verification sample?
+              type: array
+              items:
+                type: string
+              example: ["verification"]
+        publication:
+          description: Any publication references intended for this curation.  If not specified it should be a Pubmed ID (pmid)
+          example: ['215325135', 'pmid:151234124']
+          type: array
+          items:
+            type: string
+        context:
+          description: >
+            A key piece of information indicating the scope of the curation and what context it was made in.  FieldOption[curations.contexts]
+          example: ['assay:rasfp', 'assay-group:capn', 'dept:dlmp']
+          type: array
+          items:
+            type: string
+        preferredForContexts:
+          description: >
+            All the contexts that this curation is currently considered the preferred (most recent) for.
+          example: ['dept:dlmp', 'lab:pgl']
+          type: array
+          items:
+            type: string
+        tags:
+          description: >
+            Any tags that help provide greater context that is queryable for this particular curation.  FieldOption[curations.tags]
+          example: ['bs']
+          type: array
+          items:
+            type: string
+        client:
+          description: the name of the client this curation was submitted by.  It is determined by the credentials of the creator.
+          type: string
+        clientVersion:
+          description: The software release version of the given client.
+          type: string
+        genotypeTraits:
+          description: What traits does this curation represent.  This makes it more queryable.  FieldOption[curations.genotype-traits] is non exhaustive.
+          type: array
+          items:
+            type: string
+          example: ['apc gene ablation']
+        clinical:
+          description: True if this was a clinical sample else false.  This is key to defined access decisions.
+          default: false
+          type: boolean
+        revoked:
+          description: When this curation was revoked (if) and by whom.
+          properties:
+            who:
+              type: string
+            when:
+              type: string
+              format: 'date-time'
+              example: '2018-12-12T05:21:21-0500'
+        created:
+          description: When this curation was created and by whom.
+          properties:
+            who:
+              type: string
+            when:
+              type: string
+              format: 'date-time'
+              example: '2018-12-12T05:21:21-0500'
+        released:
+          description: When this curation was released (if) and by whom.
+          properties:
+            who:
+              type: string
+              required: true
+            name:
+              description: The full name of the person who released the curation.
+              type: string
+            when:
+              type: string
+              format: 'date-time'
+              required: true
+              example: '2018-12-12T05:21:21-0500'
+        updated:
+          description: When this curation was last updated and by whom,.
+          properties:
+            who:
+              type: string
+            when:
+              type: string
+              format: 'date-time'
+              example: '2018-12-12T05:21:21-0500'
+        pedigree:
+          description: >
+            This is an object that includes members of a pedigree (family members) as well as a summary of the counts
+            of how each set of relationships is affected by phenotypes or which genotypes they had.
+          properties:
+            pedigreeTypes:
+              type: array
+              items:
+                type: string
+              readOnly: true
+              example: ["case-parent trio"]
+            includedCounts:
+              description: A dictionary to look up how many members of each relationship type are included in the pedigree.
+              example:
+                {"mother":1, "father":1, "parent":2, "self":1}
+              readOnly: true
+              additionalProperties:
+                type: integer
+            phenotypeAffectedCounts:
+              description: A dictionary allowing you see how many of each relation type were affected by given phenotypes.
+              example:
+                {"mother#melanoma":1, "self#melanoma":1, "father#redhead":1}
+              readOnly: true
+              additionalProperties:
+                type: integer
+            genotypeCounts:
+              description: A dictionary allowing you see how many of each relation type have a given genotype.
+              example:
+                {"mother#homozygous":1, "self#heterozyguos":1}
+              readOnly: true
+              additionalProperties:
+                type: integer
+            additionalDetails:
+              description: Any other information passed in on the pedigree.
+              additionalProperties:
+                type: string
+            members:
+              description: All members of the pedigree.
+              type: array
+              items:
+                properties:
+                  relationships:
+                    description: All the relations that this member has.
+                    example:
+                      ["father", "parent"]
+                    type: array
+                    items:
+                      type: string
+                  affectedPhenotypes:
+                    description: All phenotypes defined on the overall curation that this member is affected by.
+                    example:
+                      ["melanoma", "red hair"]
+                    type: array
+                    items:
+                      type: string
+                  genotypes:
+                    description: All genotypes of the overall curation's variant that this member exhibits.
+                    example:
+                      ["homozygous", "present"]
+                    type: array
+                    items:
+                      type: string
+                  memberCurationId:
+                    description: The ID of the corresponding curation if it does exist.
+                    type: string
+                  additionalDetails:
+                    description: Any other information passed in on the pedigree member.
+                    additionalProperties:
+                      type: string
+        vote:
+          description: >
+            A container for counting votes for the curation.  If it exists then we have accepted votes.
+            This feature has note been used.
+          properties:
+            upVotes:
+              description: The number of times the curation has been up voted.
+              type: integer
+            downVotes:
+              description: The number of times the curation has ben down voted.
+              type: integer
+        reviews:
+          description: >
+            A review is a way that others can leave a stamp or comment on a curation.  When a review is left the context
+            of the review is set and that will become the last for that context.  A context could be something like a
+            particular laboratory (e.g. lab:pgl) or a particular role (e.g. role:consultant, role:counsellor).  When someone
+            is looking at the curation then they can see who has reviewed it.  The idea is that those with reviews should
+            be carry more weight.
+          properties:
+            contextReviews:
+              description: All of the latest reviews for each particular context.
+              additionalProperties:
+                $ref: '#/components/schemas/Review'
+            reviewHistory:
+              description: All of the reviews that have come in for this curation not just the most recent for the review.
+              type: array
+              items:
+                $ref: '#/components/schemas/Review'
+        curationReferences:
+          description: Any references from this curation to another.
+          properties:
+            referenceType:
+              description: An indicator of the reference type.  FieldOption[curations.reference_types]
+              type: string
+            curationId:
+              description: The ID of the curation we are referencing.
+              type: string
+        trackedChanges:
+          description: A place to keep track of key changes to the curation.
+          additionalProperties:
+            type: array
+            items:
+              properties:
+                field:
+                  description: The field that was changed.
+                  type: string
+                changeRecord:
+                  properties:
+                    who:
+                      description: Who made the change.
+                      type: string
+                    when:
+                      description: When the change was made.
+                      type: string
+                      format: 'date-time'
+                singleValue:
+                  description: The new value assuming a single value.
+                  type: string
+                multiValue:
+                  description: When the field was multivalue then this is used to store the string representation.
+                  type: array
+                  items:
+                    type: string
+
     AcmgClassificationCuration:
       type: object
       description: >
@@ -366,318 +679,6 @@ components:
                 It is best if NOT wraps a single aggregated query or we expect they are joined with an AND and then NOT.
           type: string
           enum: [OR, AND, NOT]
-
-    Curation:
-      description: >
-        The foundational curation type.  TODO this is just a placeholder please enhance.
-      properties:
-        entityType:
-          description: A constent 'Comment'.  Other curation types will have different values here.
-          type: string
-          enum: ['Comment']
-        id:
-          description: A system generated identifier for the curation.
-          type: string
-          readOnly: true
-          example: '58d44a6cb17ec825d460a8d7'
-        discussion:
-          description: A set of discussions that have taken place regarding this curation.
-          type: array
-          items:
-            $ref: '#/components/schemas/DiscussionEntry'
-        note:
-          description: A single comment about the curation by the person who created it.
-          type: string
-        additionalDetails:
-          description: Any further details that we do not have specific space for.  The keys are validated against FieldOption[curations.additionalDetails].
-          additionalProperties:
-            type: string
-        phenotype:
-          description: All phenotypes that this curation had identified as affecting the proband.  FieldOption[curations.phenotypes]
-          example: ["melanoma","breast cancer"]
-          type: array
-          items:
-            type: string
-        variant:
-          description: >
-            The identifier of the variant that this curation references.  A variant is quintessential to some curation types
-            such as the AcmgClassification.
-
-            Currently there is a prefix specified for each type of variant.
-          type: string
-          example: s1212512
-        variantReferenceSet:
-          description: >
-            The reference set (i.e. chromosome) that the curation was actually submitted against.
-            A variant can have multiple reference sets but a curation is expected to be submitted against a specific one.
-            FieldOption[variants.referenceSets]
-          type: string
-          example: hg19
-        transientVariantDetails:
-          oneOf:
-            - $ref: '#/components/schemas/SimpleVariant'
-            - $ref: '#/components/schemas/LargeVariant'
-            - $ref: '#/components/schemas/BreakendVariant'
-        gene:
-          description: All genes tied to this curation.
-          example: ["apc", "mutyh"]
-          type: array
-          items:
-            type: string
-        geneDetails:
-          description: >
-            A dictionary of each gene and more details about how that gene relates to this curation.
-            The key to the dictionary should be a gene that also is in the "gene" property on the curation.
-          example:
-            {"apc":{"geneName":"apc", "impact":["loss of function"], "transcript":'nm_00038.5', "tags":["primary-event-gene"]}}
-          additionalProperties:
-            $ref: '#/components/schemas/GeneDetails'
-        callSet:
-          description: A callset uniquely identifies a call set (i.e. sample/case).
-          properties:
-            sampleId:
-              description: The sample ID as provided by the sample system.
-              example: '19-XIEQ-Q212'
-              type: string
-            sampleSystem:
-              description: A system the produced and presumably tracks the Sample ID.
-              example: 'SoftLabOrderNumber'
-              type: string
-            analysisId:
-              description: A unique identifier provided by the analysis system that identifies the analysis of the sample.
-              example: 'batchXYZ'
-              type: string
-            analysisSystem:
-              description: The system where the sample was analyzed and likely submitted the curation.
-              example: 'ngswb'
-              type: string
-            nonReportable:
-              description: >
-                Set to true if this call was not reportable else false if it was reportable.  This is odd because
-                we wanted to preserve backwards compatibility and wanted to assume all previous submissions were reportable.
-              type: boolean
-            sampleTags:
-              description: Any tag put on the sample to indicate its intent.  Was it a control sample?  A verification sample?
-              type: array
-              items:
-                type: string
-              example: ["verification"]
-        publication:
-          description: Any publication references intended for this curation.  If not specified it should be a Pubmed ID (pmid)
-          example: ['215325135', 'pmid:151234124']
-          type: array
-          items:
-            type: string
-        context:
-          description: >
-            A key piece of information indicating the scope of the curation and what context it was made in.  FieldOption[curations.contexts]
-          example: ['assay:rasfp', 'assay-group:capn', 'dept:dlmp']
-          type: array
-          items:
-            type: string
-        preferredForContexts:
-          description: >
-            All the contexts that this curation is currently considered the preferred (most recent) for.
-          example: ['dept:dlmp', 'lab:pgl']
-          type: array
-          items:
-            type: string
-        tags:
-          description: >
-            Any tags that help provide greater context that is queryable for this particular curation.  FieldOption[curations.tags]
-          example: ['bs']
-          type: array
-          items:
-            type: string
-        client:
-          description: the name of the client this curation was submitted by.  It is determined by the credentials of the creator.
-          type: string
-        clientVersion:
-          description: The software release version of the given client.
-          type: string
-        genotypeTraits:
-          description: What traits does this curation represent.  This makes it more queryable.  FieldOption[curations.genotype-traits] is non exhaustive.
-          type: array
-          items:
-            type: string
-          example: ['apc gene ablation']
-        clinical:
-          description: True if this was a clinical sample else false.  This is key to defined access decisions.
-          default: false
-          type: boolean
-        revoked:
-          description: When this curation was revoked (if) and by whom.
-          properties:
-            who:
-              type: string
-            when:
-              type: string
-              format: 'date-time'
-              example: '2018-12-12T05:21:21-0500'
-        created:
-          description: When this curation was created and by whom.
-          properties:
-            who:
-              type: string
-            when:
-              type: string
-              format: 'date-time'
-              example: '2018-12-12T05:21:21-0500'
-        released:
-          description: When this curation was released (if) and by whom.
-          properties:
-            who:
-              type: string
-              required: true
-            name:
-              description: The full name of the person who released the curation.
-              type: string
-            when:
-              type: string
-              format: 'date-time'
-              required: true
-              example: '2018-12-12T05:21:21-0500'
-        updated:
-          description: When this curation was last updated and by whom,.
-          properties:
-            who:
-              type: string
-            when:
-              type: string
-              format: 'date-time'
-              example: '2018-12-12T05:21:21-0500'
-        pedigree:
-          description: >
-            This is an object that includes members of a pedigree (family members) as well as a summary of the counts
-            of how each set of relationships is affected by phenotypes or which genotypes they had.
-          properties:
-            pedigreeTypes:
-              type: array
-              items:
-                type: string
-              readOnly: true
-              example: ["case-parent trio"]
-            includedCounts:
-              description: A dictionary to look up how many members of each relationship type are included in the pedigree.
-              example:
-                {"mother":1, "father":1, "parent":2, "self":1}
-              readOnly: true
-              additionalProperties:
-                type: integer
-            phenotypeAffectedCounts:
-              description: A dictionary allowing you see how many of each relation type were affected by given phenotypes.
-              example:
-                {"mother#melanoma":1, "self#melanoma":1, "father#redhead":1}
-              readOnly: true
-              additionalProperties:
-                type: integer
-            genotypeCounts:
-              description: A dictionary allowing you see how many of each relation type have a given genotype.
-              example:
-                {"mother#homozygous":1, "self#heterozyguos":1}
-              readOnly: true
-              additionalProperties:
-                type: integer
-            additionalDetails:
-              description: Any other information passed in on the pedigree.
-              additionalProperties:
-                type: string
-            members:
-              description: All members of the pedigree.
-              type: array
-              items:
-                properties:
-                  relationships:
-                    description: All the relations that this member has.
-                    example:
-                      ["father", "parent"]
-                    type: array
-                    items:
-                      type: string
-                  affectedPhenotypes:
-                    description: All phenotypes defined on the overall curation that this member is affected by.
-                    example:
-                      ["melanoma", "red hair"]
-                    type: array
-                    items:
-                      type: string
-                  genotypes:
-                    description: All genotypes of the overall curation's variant that this member exhibits.
-                    example:
-                      ["homozygous", "present"]
-                    type: array
-                    items:
-                      type: string
-                  memberCurationId:
-                    description: The ID of the corresponding curation if it does exist.
-                    type: string
-                  additionalDetails:
-                    description: Any other information passed in on the pedigree member.
-                    additionalProperties:
-                      type: string
-        vote:
-          description: >
-            A container for counting votes for the curation.  If it exists then we have accepted votes.
-            This feature has note been used.
-          properties:
-            upVotes:
-              description: The number of times the curation has been up voted.
-              type: integer
-            downVotes:
-              description: The number of times the curation has ben down voted.
-              type: integer
-        reviews:
-          description: >
-            A review is a way that others can leave a stamp or comment on a curation.  When a review is left the context
-            of the review is set and that will become the last for that context.  A context could be something like a
-            particular laboratory (e.g. lab:pgl) or a particular role (e.g. role:consultant, role:counsellor).  When someone
-            is looking at the curation then they can see who has reviewed it.  The idea is that those with reviews should
-            be carry more weight.
-          properties:
-            contextReviews:
-              description: All of the latest reviews for each particular context.
-              additionalProperties:
-                $ref: '#/components/schemas/Review'
-            reviewHistory:
-              description: All of the reviews that have come in for this curation not just the most recent for the review.
-              type: array
-              items:
-                $ref: '#/components/schemas/Review'
-        curationReferences:
-          description: Any references from this curation to another.
-          properties:
-            referenceType:
-              description: An indicator of the reference type.  FieldOption[curations.reference_types]
-              type: string
-            curationId:
-              description: The ID of the curation we are referencing.
-              type: string
-        trackedChanges:
-          description: A place to keep track of key changes to the curation.
-          additionalProperties:
-            type: array
-            items:
-              properties:
-                field:
-                  description: The field that was changed.
-                  type: string
-                changeRecord:
-                  properties:
-                    who:
-                      description: Who made the change.
-                      type: string
-                    when:
-                      description: When the change was made.
-                      type: string
-                      format: 'date-time'
-                singleValue:
-                  description: The new value assuming a single value.
-                  type: string
-                multiValue:
-                  description: When the field was multivalue then this is used to store the string representation.
-                  type: array
-                  items:
-                    type: string
 
     Review:
       description: >

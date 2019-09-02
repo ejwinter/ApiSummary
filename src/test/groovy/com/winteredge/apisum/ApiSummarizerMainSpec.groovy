@@ -13,12 +13,9 @@ class ApiSummarizerMainSpec extends Specification {
     }
 
     def "something"(){
-
-
         when:
         summerizer.run()
         then:
         true
-
     }
 }

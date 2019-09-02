@@ -15,11 +15,11 @@ class EntitySummarizerSpec extends Specification {
     def "summarize"(){
 
         when:
-        Map<String, EntitySummary> summary = summarizer.summarize(new File(EntitySummarizer.class.getClassLoader().getResource("open-api.yml").toURI()))
+        ApiSummary summary = summarizer.summarize(new File(EntitySummarizer.class.getClassLoader().getResource("open-api.yml").toURI()))
 
         then:
-        summary['BreakendCoordinate'].description == 'A coordinate that has a confidence interval start position where a break occurs and another break from somewhere else in the genome that fuses with it.'
+        summary.entitySummaries['BreakendCoordinate'].description == 'A coordinate that has a confidence interval start position where a break occurs and another break from somewhere else in the genome that fuses with it.'
 
-        summary['BreakendCoordinate'].properties.size() == 6
+        summary.entitySummaries['BreakendCoordinate'].properties.size() == 6
     }
 }

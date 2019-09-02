@@ -29,7 +29,7 @@ public class EntitySummarizer {
                 .map(entry -> summarizeEntity(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toMap(EntitySummary::getName, s -> s, (v1, v2) -> v2, LinkedHashMap::new));
         fleshoutParentProperties(summaries, summaries);
-        return new ApiSummary(summaries);
+        return new ApiSummary(openApi.getInfo().getTitle(), openApi.getInfo().getDescription(), summaries);
     }
 
     private void fleshoutParentProperties(Map<String, EntitySummary> summaries, Map<String, EntitySummary> topLevel) {
@@ -109,7 +109,6 @@ public class EntitySummarizer {
                 properties.putAll(propertySummaries);
             }
         }
-
 
         if(schema.getProperties() != null){
             properties.putAll(schema.getProperties().entrySet().stream()
