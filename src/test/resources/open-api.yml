@@ -1,0 +1,1565 @@
+openapi: 3.0.1
+
+info:
+  version: '1.03'
+  title: Mayo Experience Database Application Programming Interface (MXD-API)
+  description: The API for submitting and accessing data in MXD.
+  contact:
+    name: Genomics and Bioinformatics Services, Custom Application Development (GBS-CAD)
+    url: https://cadwiki.mayo.edu
+    email: DLLPEACustomSmallAppsOncall@mayo.edu
+
+servers:
+  - url: https://roqngs111a.mayo.edu:8443
+    description: The production API server
+  - url: https://roqngs111a.mayo.edu:8444
+    description: The integration API server
+  - url: https://roqngs111a.mayo.edu:8445
+    description: The development API server
+  - url: https://localhost:8443
+    description: If you are running the api locally you can access this.
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    AcmgClassificationCuration:
+      type: object
+      description: >
+        A curation that represents the classification of a variant or a variant call.  A classification is a conclusion
+        on the meaning of the variant
+        This is just a place holder please enhance.
+      properties:
+        entityType:
+          description: A constant for this curation type 'AcmgClassification'.
+          type: string
+          enum: ['AcmgClassification']
+        classificationSystem:
+          description: The system used to classify this variant.  This indicates what conclusions are possible.  FieldOption[curations.classifications.classificationSystems]
+          example: acmg2015
+          type: string
+        conclusion:
+          description: The conclusion about the importance of the variant. FieldOption[curations.classifications.{classificationSystem}.classifications]
+          example: pathogenic
+          type: string
+        evidence:
+          description: All of the information we gathered when making the conclusion.
+          type: array
+          items:
+            properties:
+              source:
+                description: Where the source of the evidence came from.FieldOptions(curations.classifications.{classificationSystem}.evidence.sources) if defined.
+                example: 'pubmed'
+                type: string
+              reference:
+                description: A reference to something like a pubmed id or another database key (dbSNP, ClinVar).
+                example: 'pmid:1142121'
+                type: string
+              comment:
+                description: a freetext comment for containing additional information
+                example: 'on page 2 they mention...'
+                type: string
+              conclusion:
+                description: A discrete conclusion, it could be a the ACMG guidelines for Justifications (e.g. PVS1).  FieldOptions(curations.classifications.{classificationSystem}.evidence.conclusions) if present.
+                example: 'PVS1'
+                type: string
+              justification:
+                description: A comment discussion why/how the conclusion was made.
+                example: 'PVS1 because...'
+                type: string
+              miscInfo:
+                description: Any additional information we need to store that isn't more structured above.
+                additionalProperties:
+                  type: string
+        phenotypeImpact:
+          description: >
+            The primary phenotype this classification is in reference to and how it impacts that phenotype.
+            The keys is the phenotype and should match a phenotype in the main curation.
+          additionalProperties:
+            properties:
+              phenotype:
+                description: The phenotype this is the impact for.
+                type: string
+              mechanism:
+                description: The mechanism of the disease defined in FieldOption(phenotypeImpact.mechanism).
+                type: string
+              inheritance:
+                description: The inheritence pattern of the phenotype, defined by HPO term.
+                type: string
+              prevalence:
+                description: How common the phenotype in the population at a point in time.
+                type: string
+              penetrance:
+                description: The proportion of individuals with the genotype who express the phenotype at a point in time.
+                type: string
+        variantNames:
+          description: Names are given to variants for quictodok recall and identification.  This may be a star allele that the variant is involved in.
+          example: ['c.221A>T','p.32Q>P', 'Q32P']
+          type: array
+          items:
+            type: string
+        callDetails:
+          description: Information that is specific to this specific call (assuming callSet) is present
+          properties:
+            zygosity:
+              description: The zygosity that the call has for the curations variant.  FieldOptions[curations.call-details.zygosity]
+              type: string
+        contextsClassificationIsLatestForVariant:
+          description: A list of all the contexts that this is currently the most recent classification for.
+          type: array
+          items:
+            type: string
+        transientVariantDetails:
+          oneOf:
+            - $ref: '#/components/schemas/SimpleVariant'
+            - $ref: '#/components/schemas/LargeVariant'
+            - $ref: '#/components/schemas/BreakendVariant'
+      allOf:
+        - $ref: '#/components/schemas/Curation'
+
+    FieldOption:
+      description: A field option is a defined set of values that a given field can accept and how stringent those values need to be followed.
+      type: object
+      properties:
+        id:
+          type: string
+          description: The identifier for this property.
+        exhaustive:
+          type: boolean
+          description: Are values restricted to those defined in the 'availableOptions'?
+          default: true
+        required:
+          type: boolean
+          description: Is the property a required property?  If it is an a value is not supplied expect the submission to be rejected.
+          default: false
+        caseCoersion:
+          type: string
+          description: How properties on this field will be coerced.
+          default: LOWER
+          enum:
+            - LOWER
+            - UPPER
+            - NONE
+        description:
+          type: string
+          description: A description for the field.
+        availableOptions:
+          type: array
+          items:
+            properties:
+              note:
+                type: string
+                description: A note describing the option.
+              value:
+                type: string
+                description: The value expected when the property is submitted.
+
+    SetMatcher:
+      description: A class to allow you to search one or more values to another field.
+      properties:
+        valuesToMatch:
+          description: The set of values that we may want to match on.
+          type: array
+          items:
+            type: string
+        matchMode:
+          description: >
+            How would you like to use the supplied to valuesToMatch to compare with.
+              * ANY - Any of the entries in this set match any of the result.
+              * ALL - All of the entries in this set appear in the result set.  Others may be in the result set.
+              * NONE - None of the entries in this set appear in the result set.
+              * ALL_ONLY - All of the entries and only those entries appear in the result set.
+          type: string
+          enum: [ANY, ALL, NONE, ALL_ONLY]
+
+    CallSetMatcher:
+      description: Provide inforamtion to identify the call we want to include.
+      properties:
+        exists:
+          description: You can use this if you want to only check if a curation reference a given CallSet (true) or not (false).
+          type: boolean
+          default: true
+        sampleId:
+          description: The sampleId that we should match.  Currently, this has to be an exact match we have plans on supporting other ways to query for sampleId.
+          type: string
+          example: '19-BXYZQQ-1215'
+        sampleSystem:
+          description: >
+            The system that generated the sampleId.  This is often something like SoftSpecimenId or something.  It indicates the accessioning system.
+            It may not be from an LIS if it was not indeed accessioning out of an LIS.
+          type: string
+          example: 'SoftSpecimenId'
+        analysisId:
+          description: An identifier likely from the submitting client system that can uniquely identify the analysis of the given sampleId.
+          type: string
+          example: 'batchXYZ'
+        analysisSystem:
+          description: The system where the sample was analyzed and likely submitted the curation.
+          type: string
+          example: 'ngswb'
+        sampleTags:
+          description: Any tags that we should be looking for to find matching call sets.
+          allOf:
+            - $ref: '#/components/schemas/SetMatcher'
+          example: {'valuesToMatch':['control', 'verification'], 'matchMode':'ANY'}
+        onlyReportable:
+          description: Set to true if you only want to get values that have a nonReportable value of false.
+          type: boolean
+          default: false
+        sampleIdMatcher:
+          $ref: '#/components/schemas/StringMatcher'
+
+    StringMatcher:
+      description: Can find values for a string given a few different options. Allows for querying for item using part or all of its text.
+      properties:
+        value:
+          description: The value we want to match.
+          type: string
+        like:
+          description: Set to true if you want to be able to match wild card matches such as "start%" or "%end" (performance hit).
+          type: boolean
+          default: false
+        ignoreCase:
+          description: Set to true if you would like to ignore case in making the comparison (performance hit).
+          type: boolean
+          default: false
+        aggregates:
+          description: Set if you would like to have multiple queries combined with an operator set the sub StringMatcher instances here.
+          type: array
+        aggregationMode:
+          description: If aggregates are used what operator should be used to interpret the aggregates?
+          type: string
+          default: AND
+          enum: [AND, OR, NOT]
+
+    CurationQuery:
+      description: Use this query to find curations given a number of options.  We can add options over time but we will not change within a version of the API.
+      properties:
+        variantQueries:
+          type: array
+          description: Pass one or more queries for variant details such as position that you would like to included curations for
+          items:
+            $ref: '#/components/schemas/VariantQuery'
+        context:
+          type: string
+          description: "Pass one or more queries for variant details such as position that you would like to included curations for."
+        curationType:
+          type: string
+          description: Specify a curation type the curation must have to be returned.
+          example: "AcmgClassification"
+        reviewQueries:
+          $ref: '#/components/schemas/ReviewSubquery'
+        gene:
+          description: "Set this if you want to specify that the curation references a particular gene.
+                         This is not for variants associated with a gene but the curation itself.  Set to ANY if the should just reference a gene.
+                         Set to NONE if the results should not reference any gene."
+          type: string
+        publication:
+          description: Set this if you want to find all curations that reference a particular publication.  Set to ANY to if the results just need to reference a publication.  Set to NONE
+          type: string
+        phenotype:
+          description: A query that phenotypes should match.
+          type: string
+        clinical:
+          description: Set to true for only clinical curations to returned.  Set to false for only non clinical to be returned.  Leave null for any results.
+          type: boolean
+        callSetMatcher:
+          $ref: '#/components/schemas/CallSetMatcher'
+        conclusion:
+          description: This is a conclusion that is only relavent for conclusive curations
+          type: string
+        createDate:
+          $ref: '#/components/schemas/DateMatcher'
+        createBy:
+          type: string
+          description: The id of the person who created the curation.
+        includedRevoked:
+          type: boolean
+          description: Set to true if you want to curations that have been revoked else leave as false.
+        variantIds:
+          description: A list of variant ids we want to find curations for.
+          type: array
+          items:
+            type: string
+        additionalDetails:
+          $ref: '#/components/schemas/AdditionalDetails'
+        curationReferenceType:
+          description: You can use this to specify what type of curation references to match the curationReferenceId.  Leave undefined to find any reference types.
+          type: string
+          example: "case_interpretation_of_call"
+        curationReferenceId:
+          description: Set this to find curations pointing at the curation with this.
+          type: string
+          example: "5ae8d7ae30592d7aa2d54022"
+        tag:
+          description: Set to a value that the results should have a tag of.
+          type: string
+        preferredContext:
+          description: Set to the context you only want preferred curations of.
+          type: string
+        genotypeTraits:
+          $ref: '#/components/schemas/StringMatcher'
+        geneDetails:
+          $ref: '#/components/schemas/GeneDetailsSubquery'
+        hasCallDetails:
+          type: boolean
+          description: Set to true to find only curations with call details.  Set to false to find only curations without call details.
+        callDetailsSubquery:
+          $ref: '#/components/schemas/CallDetailsSubquery'
+        requestingClient:
+          type: string
+          description: The client making this request.  We do not utilize what is set but will substitute in the client system associated with the client using the api.
+
+
+
+
+    Query:
+      description: A base class for our queries with the pagination and sorting properties.
+      type: object
+      properties:
+        page:
+          description: The page number you want to retrieve.
+          type: integer
+          default: 0
+        pageSize:
+          description: The number of results you wish to receive back on a page.
+          type: integer
+          default: 100
+        ordering:
+          description: An array indicating the path of fields you would like to sort results by.
+          type: array
+          items:
+            type:
+              object
+            properties:
+              fieldPath:
+                description: A path within the result object for which you want to sort the results.  Indices should exist on these objects.
+                type: string
+                example: 'created.when'
+              ignorecase:
+                description: Should we ignore case in our sort operation?
+                type: boolean
+                default: true
+              ascending:
+                description: Set to false if you want to sort descending.
+                type: boolean
+                default: true
+
+    Aggregatable:
+      description: A base class for queries that are aggregatable meaning they can have multiple combined.
+      type: object
+      properties:
+        aggregates:
+          description: An array of the query type itself.
+          type: array
+          items:
+            type: object
+        aggregationMode:
+          description: >
+            If an array of 'aggregated' is provided, how should the aggregation be performed?  The particular endpoint or
+            feature may indicate which options are available.
+              * AND - All of the aggregated queries must apply to each result.
+              * OR  - Any of the aggregated queries can apply to each result.
+              * NOT - This inverts the aggregated queries so results will not match them.
+                It is best if NOT wraps a single aggregated query or we expect they are joined with an AND and then NOT.
+          type: string
+          enum: [OR, AND, NOT]
+
+    Curation:
+      description: >
+        The foundational curation type.  TODO this is just a placeholder please enhance.
+      properties:
+        entityType:
+          description: A constent 'Comment'.  Other curation types will have different values here.
+          type: string
+          enum: ['Comment']
+        id:
+          description: A system generated identifier for the curation.
+          type: string
+          readOnly: true
+          example: '58d44a6cb17ec825d460a8d7'
+        discussion:
+          description: A set of discussions that have taken place regarding this curation.
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscussionEntry'
+        note:
+          description: A single comment about the curation by the person who created it.
+          type: string
+        additionalDetails:
+          description: Any further details that we do not have specific space for.  The keys are validated against FieldOption[curations.additionalDetails].
+          additionalProperties:
+            type: string
+        phenotype:
+          description: All phenotypes that this curation had identified as affecting the proband.  FieldOption[curations.phenotypes]
+          example: ["melanoma","breast cancer"]
+          type: array
+          items:
+            type: string
+        variant:
+          description: >
+            The identifier of the variant that this curation references.  A variant is quintessential to some curation types
+            such as the AcmgClassification.
+
+            Currently there is a prefix specified for each type of variant.
+          type: string
+          example: s1212512
+        variantReferenceSet:
+          description: >
+            The reference set (i.e. chromosome) that the curation was actually submitted against.
+            A variant can have multiple reference sets but a curation is expected to be submitted against a specific one.
+            FieldOption[variants.referenceSets]
+          type: string
+          example: hg19
+        transientVariantDetails:
+          oneOf:
+            - $ref: '#/components/schemas/SimpleVariant'
+            - $ref: '#/components/schemas/LargeVariant'
+            - $ref: '#/components/schemas/BreakendVariant'
+        gene:
+          description: All genes tied to this curation.
+          example: ["apc", "mutyh"]
+          type: array
+          items:
+            type: string
+        geneDetails:
+          description: >
+            A dictionary of each gene and more details about how that gene relates to this curation.
+            The key to the dictionary should be a gene that also is in the "gene" property on the curation.
+          example:
+            {"apc":{"geneName":"apc", "impact":["loss of function"], "transcript":'nm_00038.5', "tags":["primary-event-gene"]}}
+          additionalProperties:
+            $ref: '#/components/schemas/GeneDetails'
+        callSet:
+          description: A callset uniquely identifies a call set (i.e. sample/case).
+          properties:
+            sampleId:
+              description: The sample ID as provided by the sample system.
+              example: '19-XIEQ-Q212'
+              type: string
+            sampleSystem:
+              description: A system the produced and presumably tracks the Sample ID.
+              example: 'SoftLabOrderNumber'
+              type: string
+            analysisId:
+              description: A unique identifier provided by the analysis system that identifies the analysis of the sample.
+              example: 'batchXYZ'
+              type: string
+            analysisSystem:
+              description: The system where the sample was analyzed and likely submitted the curation.
+              example: 'ngswb'
+              type: string
+            nonReportable:
+              description: >
+                Set to true if this call was not reportable else false if it was reportable.  This is odd because
+                we wanted to preserve backwards compatibility and wanted to assume all previous submissions were reportable.
+              type: boolean
+            sampleTags:
+              description: Any tag put on the sample to indicate its intent.  Was it a control sample?  A verification sample?
+              type: array
+              items:
+                type: string
+              example: ["verification"]
+        publication:
+          description: Any publication references intended for this curation.  If not specified it should be a Pubmed ID (pmid)
+          example: ['215325135', 'pmid:151234124']
+          type: array
+          items:
+            type: string
+        context:
+          description: >
+            A key piece of information indicating the scope of the curation and what context it was made in.  FieldOption[curations.contexts]
+          example: ['assay:rasfp', 'assay-group:capn', 'dept:dlmp']
+          type: array
+          items:
+            type: string
+        preferredForContexts:
+          description: >
+            All the contexts that this curation is currently considered the preferred (most recent) for.
+          example: ['dept:dlmp', 'lab:pgl']
+          type: array
+          items:
+            type: string
+        tags:
+          description: >
+            Any tags that help provide greater context that is queryable for this particular curation.  FieldOption[curations.tags]
+          example: ['bs']
+          type: array
+          items:
+            type: string
+        client:
+          description: the name of the client this curation was submitted by.  It is determined by the credentials of the creator.
+          type: string
+        clientVersion:
+          description: The software release version of the given client.
+          type: string
+        genotypeTraits:
+          description: What traits does this curation represent.  This makes it more queryable.  FieldOption[curations.genotype-traits] is non exhaustive.
+          type: array
+          items:
+            type: string
+          example: ['apc gene ablation']
+        clinical:
+          description: True if this was a clinical sample else false.  This is key to defined access decisions.
+          default: false
+          type: boolean
+        revoked:
+          description: When this curation was revoked (if) and by whom.
+          properties:
+            who:
+              type: string
+            when:
+              type: string
+              format: 'date-time'
+              example: '2018-12-12T05:21:21-0500'
+        created:
+          description: When this curation was created and by whom.
+          properties:
+            who:
+              type: string
+            when:
+              type: string
+              format: 'date-time'
+              example: '2018-12-12T05:21:21-0500'
+        released:
+          description: When this curation was released (if) and by whom.
+          properties:
+            who:
+              type: string
+              required: true
+            name:
+              description: The full name of the person who released the curation.
+              type: string
+            when:
+              type: string
+              format: 'date-time'
+              required: true
+              example: '2018-12-12T05:21:21-0500'
+        updated:
+          description: When this curation was last updated and by whom,.
+          properties:
+            who:
+              type: string
+            when:
+              type: string
+              format: 'date-time'
+              example: '2018-12-12T05:21:21-0500'
+        pedigree:
+          description: >
+            This is an object that includes members of a pedigree (family members) as well as a summary of the counts
+            of how each set of relationships is affected by phenotypes or which genotypes they had.
+          properties:
+            pedigreeTypes:
+              type: array
+              items:
+                type: string
+              readOnly: true
+              example: ["case-parent trio"]
+            includedCounts:
+              description: A dictionary to look up how many members of each relationship type are included in the pedigree.
+              example:
+                {"mother":1, "father":1, "parent":2, "self":1}
+              readOnly: true
+              additionalProperties:
+                type: integer
+            phenotypeAffectedCounts:
+              description: A dictionary allowing you see how many of each relation type were affected by given phenotypes.
+              example:
+                {"mother#melanoma":1, "self#melanoma":1, "father#redhead":1}
+              readOnly: true
+              additionalProperties:
+                type: integer
+            genotypeCounts:
+              description: A dictionary allowing you see how many of each relation type have a given genotype.
+              example:
+                {"mother#homozygous":1, "self#heterozyguos":1}
+              readOnly: true
+              additionalProperties:
+                type: integer
+            additionalDetails:
+              description: Any other information passed in on the pedigree.
+              additionalProperties:
+                type: string
+            members:
+              description: All members of the pedigree.
+              type: array
+              items:
+                properties:
+                  relationships:
+                    description: All the relations that this member has.
+                    example:
+                      ["father", "parent"]
+                    type: array
+                    items:
+                      type: string
+                  affectedPhenotypes:
+                    description: All phenotypes defined on the overall curation that this member is affected by.
+                    example:
+                      ["melanoma", "red hair"]
+                    type: array
+                    items:
+                      type: string
+                  genotypes:
+                    description: All genotypes of the overall curation's variant that this member exhibits.
+                    example:
+                      ["homozygous", "present"]
+                    type: array
+                    items:
+                      type: string
+                  memberCurationId:
+                    description: The ID of the corresponding curation if it does exist.
+                    type: string
+                  additionalDetails:
+                    description: Any other information passed in on the pedigree member.
+                    additionalProperties:
+                      type: string
+        vote:
+          description: >
+            A container for counting votes for the curation.  If it exists then we have accepted votes.
+            This feature has note been used.
+          properties:
+            upVotes:
+              description: The number of times the curation has been up voted.
+              type: integer
+            downVotes:
+              description: The number of times the curation has ben down voted.
+              type: integer
+        reviews:
+          description: >
+            A review is a way that others can leave a stamp or comment on a curation.  When a review is left the context
+            of the review is set and that will become the last for that context.  A context could be something like a
+            particular laboratory (e.g. lab:pgl) or a particular role (e.g. role:consultant, role:counsellor).  When someone
+            is looking at the curation then they can see who has reviewed it.  The idea is that those with reviews should
+            be carry more weight.
+          properties:
+            contextReviews:
+              description: All of the latest reviews for each particular context.
+              additionalProperties:
+                $ref: '#/components/schemas/Review'
+            reviewHistory:
+              description: All of the reviews that have come in for this curation not just the most recent for the review.
+              type: array
+              items:
+                $ref: '#/components/schemas/Review'
+        curationReferences:
+          description: Any references from this curation to another.
+          properties:
+            referenceType:
+              description: An indicator of the reference type.  FieldOption[curations.reference_types]
+              type: string
+            curationId:
+              description: The ID of the curation we are referencing.
+              type: string
+        trackedChanges:
+          description: A place to keep track of key changes to the curation.
+          additionalProperties:
+            type: array
+            items:
+              properties:
+                field:
+                  description: The field that was changed.
+                  type: string
+                changeRecord:
+                  properties:
+                    who:
+                      description: Who made the change.
+                      type: string
+                    when:
+                      description: When the change was made.
+                      type: string
+                      format: 'date-time'
+                singleValue:
+                  description: The new value assuming a single value.
+                  type: string
+                multiValue:
+                  description: When the field was multivalue then this is used to store the string representation.
+                  type: array
+                  items:
+                    type: string
+
+    Review:
+      description: >
+        When someone wants to leave a note on something they can do so.  They indicate what context that review was made
+        in relation to.
+      properties:
+        context:
+          description: The context for the review such as a laboratory or a job role (role:consultant, role:counsellor).  FieldOptions('curations.reviews.contexts')
+          type: array
+          items:
+            type: string
+        status:
+          description: A status of the review.  Currently, 'approved'/'disapproved'.  FieldOptions('curations.reviews.status')
+          type: string
+          required: true
+        note:
+          description: A freetext note left by the reviewer imparting some information to the readers.
+          type: string
+        created:
+          properties:
+            who:
+              description: Who created the review.  Often a user id but perhaps a name.
+              example: 'winte'
+              type: string
+            when:
+              description: When the review was performed.
+              example: '2019-07-26T12:22:31-0500'
+              type: string
+              format: 'date-time'
+
+    GeneDetails:
+      description: More details about the gene of intrest to a curation.
+      properties:
+        geneName:
+          description: The name of the gene we are describing.
+          type: string
+          required: true
+        transcript:
+          description: |
+            Which transcript was used to interpret this gene for this curation?  FieldOption[curations.gene-details.transcript]
+          example: 'nm_00038.5'
+          type: string
+        tags:
+          description: Any tags that this gene is associated with.  FieldOption[curations.gene-details.tags]
+          example: ["primary-mate-gene"]
+          type: array
+          items:
+            type: string
+        impact:
+          description: How is thise gene impacted by the variant or other curation aspect?  FieldOption[curations.gene-details.impact]
+          example:
+            ["loss of function", "gene ablation"]
+          type: array
+          items:
+            type: string
+
+
+    AcmgClassificationQuery:
+      description: >
+        This is a quintessential query you will be using when you want to find AcmgClassifications using many options
+        identified as useful.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Query'
+      properties:
+        queryType:
+          description: >
+            A required constant value of 'AcmgClassification' is used to tell MXD what type of query you
+            are running.
+          type: string
+          enum:
+            - AcmgClassification
+        aggregated:
+          description: >
+            Only set this if you are trying to aggregate multiple queries in an and/or/not sort of way.  This allows you to
+            perform arbitrarily complex queries.  These are not just objects but themselves AcmgClassificationQuery objects.
+          type: array
+          items:
+            type: object
+          example:
+            - {queryType: 'AcmgClassification'}
+            - {queryType: 'AcmgClassification'}
+        aggregationMode:
+          description: >
+            If an array of 'aggregated' is provided, how should the aggregation be performed?  The particular endpoint or
+            feature may indicate which options are available.
+              * AND - All of the aggregated queries must apply to each result.
+              * OR  - Any of the aggregated queries can apply to each result.
+              * NOT - This inverts the aggregated queries so results will not match them.
+                It is best if NOT wraps a single aggregated query or we expect they are joined with an AND and then NOT.
+          type: string
+          enum: [OR, AND, NOT]
+        requestingClient:
+          type: string
+          readOnly: true
+          example: 'ngswb'
+          description: The name of the client performing this query.  We use your credentials to determine the client.
+        variantId:
+          description: The ID of the variant that this curation references (if it does).  This ID will be a key into the appropriate variant table.
+          type: string
+          example: 's154231'
+        includedConclusions:
+          description: Which conclusions do you want to see the results for?
+          example: {valuesToMatch: ['pathogenic','likely-pathogenic'], matchMode: 'ANY'}
+          allOf:
+            - $ref: '#/components/schemas/SetMatcher'
+        callSetMatcher:
+          $ref: '#/components/schemas/CallSetMatcher'
+        client:
+          description: If you'd like to restrict your results to those submitted for a given client enter that client name here.
+          example: {valuesToMatch: ['ngswb','mawb'], matchMode: 'ANY'}
+          allOf:
+            - $ref: '#/components/schemas/SetMatcher'
+        context:
+          description: If you would only like to see results for given contexts enter those here.
+          example: {valuesToMatch: ['assay-group:capn','dept:dlmp'], matchMode: 'ANY'}
+          allOf:
+            - $ref: '#/components/schemas/SetMatcher'
+        contextsClassificationIsLatestForVariant:
+          description: If you'd only like to see results that are the latest classifications for given contexts enter those here.
+          example: {valuesToMatch: ['assay-group:capn','dept:dlmp'], matchMode: 'ANY'}
+          allOf:
+            - $ref: '#/components/schemas/SetMatcher'
+        preferredForContext:
+          description: Set to false if you'd like to see all classifications not just those currently preferred for a context, any context.
+          type: boolean
+          default: true
+        genotypeTraits:
+          description: >
+            If you'd like to see only results with given sets of genotype traits enter those here.
+            Ingenium callse these 'panel targets'.
+          example: {valuesToMatch: ['apc fusion','apc enhancer'], matchMode: 'ANY'}
+          allOf:
+            - $ref: '#/components/schemas/SetMatcher'
+        includeRevoked:
+          description: Set to true if you would like to include revoked curations in your request.  If false (default) you will not see results that are revoked as of now.
+          type: boolean
+          default: false
+        gene:
+          description: If you'd like to restrict your results to those on particular genes as submitted enter those here.
+          example: {valuesToMatch: ['apc','mutyh'], matchMode: 'ANY'}
+          allOf:
+            - $ref: '#/components/schemas/SetMatcher'
+        geneDetails:
+          $ref: '#/components/schemas/GeneDetailsSubquery'
+        referenceSet:
+          description: >
+            The referenceSet we are going to search for coordinates on.  Required if you want to search based on coordinates
+            by providing a positionRange.
+          type: string
+          example: 'hg19'
+        desiredVariantTypes:
+          description: >
+            If you are searching for variants (not by ID) then you need to indicate which types of variants we should
+            be searching for.  This is because there is a performance impact for searching for each type of variant
+            and we want you to buy into this impact.  Use 'any' if you do want all types of variant.
+          type: array
+          items:
+            type: string
+            enum: ['simple', 'large', 'breakend', 'any']
+        positionRange:
+          description: The position range of the variant or the primary event of the breakend variant.
+          allOf:
+            - $ref: '#/components/schemas/GenomicPositionRangeMatcher'
+        breakendMate:
+          description: If you are searching for a breakend and want to find results based on the mate position use this.
+          properties:
+            matePositionRange:
+              description: The position range you want to search for the secondary or mate event.
+              allOf:
+                - $ref: '#/components/schemas/GenomicPositionRangeMatcher'
+            mateJoinOrientation:
+              description: If you would like to search based on a given mate join orientation use this.  Refer to the definition of BreakendVariant for more details.
+              properties:
+                value:
+                  description: If you want to search for a specific value use this.
+                  type: string
+                exists:
+                  description: Set to true to get only results that have a value or false for only those that do not have a value.
+                  type: boolean
+            mateSequenceOrientation:
+              description: If you would like to search based on a given mate sequence orientation use this.  Refer to the definition of BreakendVariant for more details.
+              properties:
+                value:
+                  description: If you want to search for a specific value use this.
+                  type: string
+                exists:
+                  description: Set to true to get only results that have a value or false for only those that do not have a value.
+                  type: boolean
+            hasMate:
+              description: Set to true to get results that have a mate, false that do not have a mate or leave null for either.
+              type: boolean
+        variantQualifiers:
+          description: If you want to search the variants looking for a given set of qualifiers.
+          example: {valuesToMatch: ['heterozygous'], matchMode: 'ANY'}
+          allOf:
+            - $ref: '#/components/schemas/SetMatcher'
+        referenceSequence:
+          description: If you want a specific reference sequence on the variant enter that here.
+          type: string
+          example: 'A'
+        alternateSequence:
+          description: If you want a specific alternate sequence on the variant enter that here.
+          type: string
+          example: 'T'
+        clinical:
+          description: Set this if you only want those flagged as clinical or not.
+          type: boolean
+        phenotype:
+          description: If you only want curations flagged with a given set of phenotypes.
+          example: {valuesToMatch: ['melanoma'], matchMode: 'ANY'}
+          allOf:
+            - $ref: '#/components/schemas/SetMatcher'
+        phenotypeImpact:
+          description: >
+            If you want to search by one of several phenotype impact sub properties of the curation.  Note:
+            this is subject to change soon based on some feedback we received from GCs.
+          allOf:
+            - $ref: '#/components/schemas/Aggregatable'
+        callDetails:
+          description: There are several call specific details you can query on.  Currently zygosity is the only one we called out.
+          allOf:
+            - $ref: '#/components/schemas/Aggregatable'
+          properties:
+            zygosity:
+              description: >
+                If you want to search only calls that had a given zygosity use this.  It is recommended that when
+                the classification is subject to be different based on zygosity that a qualifier is also added to the variant.
+              example:
+                {valuesToMatch: ['homozygous'], matchMode: 'ANY'}
+              allOf:
+                - $ref: '#/components/schemas/SetMatcher'
+        pedigree:
+          description: |
+            If there are some pedigree data you want to find use this.  If you want a pedigree to be created in MXD you
+            must submit a pedigree with at least one member.
+          allOf:
+            - $ref: '#/components/schemas/Aggregatable'
+          properties:
+            hasPedigree:
+              description: >
+                Set to true/false if you only want to see results that either do or do not have a pedigree.  It is assumed
+                that if you are presenting a pedigree query that you do.
+              type: boolean
+              default: true
+            pedigreeType:
+              description: If you want to find only curations with a given pedigree type enter that here.
+              type: string
+              example: 'case-parent trio'
+            includedCounts:
+              description: If you want to only include those with pedigrees with given counts of relations set this.
+              additionalProperties:
+                $ref: '#/components/schemas/IntegerMatcher'
+              example:
+                {mother: {eq: 1}, sibling: {min: 1}}
+            specificPhenotypeAffectedCounts:
+              description: If you want to find those with counts of relations with given phenotype then use this.
+              example:
+                {parent: {melanoma: {eq: 1}}, self: {melanoma: {eq: 1}}}
+              additionalProperties:
+                $ref: '#/components/schemas/IntegerMatcherDictionary'
+            genotypeCounts:
+              description: If you want to query by counts of relations with specific genotypes.
+              example:
+                {parent: {homozygous: {min: 1}}, self: {homozygous: {eq: 1}}}
+              additionalProperties:
+                $ref: '#/components/schemas/IntegerMatcherDictionary'
+
+    DiscussionEntry:
+      description: |
+        We often want to be able to have a detailed discussion with multiple notes, responses, and tags.
+
+        Discussions can have different formats such as HTML or Rich-Text Format (RTF).
+
+        Discussion can also be marked as 'protected' meaning that clients probably should not expose those to other users.
+        This may be due to a variety of reasons.  It is expected that if a comment has no value to posterity that it is
+        never submitted to MXD.
+      properties:
+        id:
+          description: >
+            A random identifier for this particular entry.  If not supplied this will be generated by MXD.  It is used to merge changes to comments.
+            If it is supplied then must be unique at least within the curation so notes change we can merge them appropriately.
+          type: string
+        note:
+          description: The content of the note.
+          type: string
+        visibility:
+          description: How visible should this information be.  Should it be displayed in other user interfaces?
+          type: string
+          default: 'public'
+          enum: ['public', 'protected']
+        format:
+          description: All notes are text based but there are different ways to render text such as HTML.
+          type: string
+          default: 'text/plain'
+          enum: ['text/plain', 'text/html', 'text/rtf']
+        tags:
+          description: Any tags that were put on the entry.  This may supply context to the note.  Not all systems support tags.
+          type: array
+          items:
+            type: string
+        replies:
+          description: >
+            All replies to this top level discussion entry.  Note this could go down to replies of replies
+            a very long time although not likely to.
+          type: array
+        created:
+          properties:
+            when:
+              description: When the note was created.
+              type: string
+              format: 'date-time'
+            who:
+              description: An identifier for the person who submitted.  This may be a LAN ID for Mayo employees.
+              type: string
+            name:
+              description: The name of the person who submitted it.
+              example: Winter, Eric J.
+              type: string
+        updated:
+          properties:
+            when:
+              description: When the note was updated.
+              type: string
+              format: 'date-time'
+            who:
+              description: An identifier for the person who last updated the note.  This may be a LAN ID for Mayo employees.
+              type: string
+            name:
+              description: The name of the person who submitted it.
+              type: string
+
+    IntegerMatcherDictionary:
+      description: Sometimes we need to lookup an integer matcher based on a value.
+      additionalProperties:
+        $ref: '#/components/schemas/IntegerMatcher'
+
+    IntegerMatcher:
+      description: When you need to match integers using equality or a range use this.
+      properties:
+        eq:
+          description: When the matcher if for equality set this.
+          type: integer
+        min:
+          description: If there is a minimum value in a range use this.
+          type: integer
+        max:
+          description: If there is a max value in a range use this.
+          type: integer
+
+    GenomicPositionRangeMatcher:
+      description: >
+        If you want to search for classification of variants by their genomic position use this property.  You will
+        need to also indicate the referenceSet you wish to search on and the desiredVariantTypes.
+      example:
+        {reference: 'x', minPosition: 412122, maxPosition: 872112, matchMode: 'RESULTS_OVERLAP_QUERY'}
+      properties:
+        matchMode:
+          description: >
+            How would we like to match the position of results based on our ranges provided.
+              * RESULTS_ENVELOPS_QUERY - Variants that match the query will have a position that may completely surrounds the query positions provided.
+              * QUERY_ENVELOPS_RESULTS - Variants that match the query will have start and end positions that are completely surrounded by the query positions provided.
+              * RESULTS_OVERLAP_QUERY - Variants that match the query may have some overlap with the query positions provided.
+              * EXACT_POSITION - We will look at the start and end of the variant and ensure the positions are exactly the same.
+              * RESULTS_DO_NOT_OVERLAP_QUERY - There may be no overlap between the results and teh query, due to the confidence interval they may both overlap and not overlap.
+          default: 'RESULTS_OVERLAP_QUERY'
+          enum: ['RESULTS_ENVELOPS_QUERY', 'QUERY_ENVELOPS_RESULTS', 'RESULTS_OVERLAP_QUERY', 'EXACT_POSITION', 'RESULTS_DO_NOT_OVERLAP_QUERY']
+        reference:
+          description: The reference (i.e. chromosome) that we want to search for.  It will not have the 'chr' prefix.
+          type: string
+          example: 'x'
+        minPosition:
+          description: The min position in the range (inclusive)
+          type: number
+          format: int64
+          example: 12322121
+          default: 0
+        maxPosition:
+          description: The max position in the range (inclusive)
+          type: number
+          format: int64
+          example: 12322121
+          default: 9223372036854775807
+
+    QueryResults:
+      description: When we return a result of a query we have to indicate some things such as page.
+      properties:
+        query:
+          type: object
+          description: This is the query that was submitted and we are returning results for.
+        totalResultCount:
+          description: The total number of results for the query execution.
+          type: number
+          format: int64
+        message:
+          description: Any message we want to return as part of the query results.
+          type: string
+    DateMatcher:
+      description: Use this to match a date field usually by speciying a min and a max
+      properties:
+        min:
+          type: string
+          description: proper string representation of date. The minimum date we want to match.
+        max:
+          type: string
+          description: proper string representation of a date. The maximum date we want to match
+    GeneDetailsSubquery:
+      description: If you want to query by a gene detail then use this query class.
+      properties:
+        genename:
+          type: string
+          description: Required, you need to specify which gene you want to search by.  Expected to be lower case.
+          required: true
+          example: apc
+        tags:
+          description: Specify any tags you want to match for this gene.
+          allOf:
+            - $ref: '#/components/schemas/SetMatcher'
+        impact:
+          description: Specify any impacts you want to match.
+          allOf:
+            - $ref: '#/components/schemas/SetMatcher'
+        transcript:
+          description: The transcript that must match.
+          type: string
+          example: "nm_000038.5"
+        additionalDetails:
+          type: object
+          description: If you want to search by one of the additional details, warning that these are generally not indexed so if you have a use case to do this regularly contact the development team FieldOption(curations.gene-details.impact)"
+          properties:
+            key:
+              type: string
+              description: any string you want to use as a key for this property
+            value:
+                $ref: '#/components/schemas/StringMatcher'
+      allOf:
+        - $ref: "#/components/schemas/Aggregatable"
+    ReviewSubquery:
+      description: A subquery to find reviews that a found curations must have on them.
+      properties:
+        exists:
+          type: boolean
+          description: Set to true if a review simply has to exist or false if no reviews should exist.  Leave null otherwise.
+        context:
+          type: string
+          description: Set to a string that must be contained in the context name.  Either a full context name or using wildcards to match assay:*
+        reviewDate:
+          $ref: '#/components/schemas/DateMatcher'
+        userName:
+          type: string
+          description: Use this to find reviews by specific people.
+        reviewState:
+          type: string
+          description: Use this to find reviews only for a specific state.
+        includeAllReviews:
+          type : boolean
+    CallDetailsSubquery:
+      description: When you need to query by call details utilize this.
+      properties:
+        zygosity:
+          type: string
+          description: The zygosity you want results to match.  Expected to be lowercase.  FieldOption(calls.zygosity)."
+        variantFrequency:
+          $ref: '#/components/schemas/NumberMatcher'
+        ageInYears:
+          $ref: '#/components/schemas/NumberMatcher'
+        reported:
+          type: boolean
+          description: Set to true to only get curations that have been flagged as reported.  Set to false to find those that have not been reported.
+        additionalDetails:
+          $ref: '#/components/schemas/AdditionalDetails'
+        gender:
+          type: string
+          description: The gender m/f/u of expected results.  Expected to be lower case.  FieldOption(curations.gender)"
+        race:
+          type: race
+          description: The race of the curation.  FieldOption(curations.race)
+    AdditionalDetails:
+      description: A map of additional details we want to match against.
+      type: object
+      properties:
+          key:
+            description: name of the property as it was submitted.
+            type: string
+          value:
+            $ref: '#/components/schemas/StringMatcher'
+    NumberMatcher:
+      description: Use this when you want specify a range a range.
+      properties:
+        min:
+          type: number
+          example: 1
+          description: minimum number desired.
+        max:
+          type: number
+          example: 100
+          description: maximum number desired.
+    VariantQuery:
+      allOf:
+        - $ref: '#/components/schemas/Query'
+    Variant:
+      description: 'Representation of the variant information stored in MXD'
+      properties:
+        id:
+          type: string
+        coordinates:
+          type: object
+          properties:
+            key:
+              description: 'This is usually the referenceSet value.'
+              type: string
+            coordinates:
+              oneOf:
+                - $ref: '#/components/schemas/BreakendCoordinate'
+                - $ref: '#/components/schemas/SimpleCoordinate'
+                - $ref: '#/components/schemas/ImpreciseCoordinate'
+        geneSet:
+          type: array
+          items:
+            type: string
+        variantSubtype:
+          type: string
+        qualifiers:
+          type: array
+          items:
+            type: string
+    SimpleVariant:
+      description: "A simple variant with exact start and end positions as well as reference and alternate sequences."
+      allOf:
+        - $ref: '#/components/schemas/Variant'
+    LargeVariant:
+      description: "A representation of a large variant such as a cnv"
+      allOf:
+        - $ref: '#/components/schemas/Variant'
+    BreakendVariant:
+      description: " represents a break end variant, meant to cover recombination structural variants such as inversions and translocations."
+      allOf:
+        - $ref: '#/components/schemas/Variant'
+    BreakendCoordinate:
+      description: A coordinate that has a confidence interval start position where a break occurs and another break from somewhere else in the genome that fuses with it.
+      properties:
+        referenceSet:
+          description: the reference genome that this coordinate refers
+          type: string
+          required: true
+          example: "hg19"
+        qualifiers:
+          description: Set of qualifiers for this coordinate such as insertion, duplication, or deletion
+          example: "[deletion]"
+          type: array
+          items:
+            type: string
+        reference:
+          description: the sequence (likely a chromosome) that this coordinate starts on
+          required: true
+          example: "2"
+          type: string
+        referenceBasis:
+          description: the base that is just before the break end so we have an idea of what joins to the mate, N for 'not available'
+          required: true
+          example: "A"
+          type: string
+        start:
+#          description: the start position of the break end, may be fuzzy toDo: how to add description to ref schema object.
+          $ref: '#/components/schemas/ConfidenceRange'
+        mate:
+          $ref: '#/components/schemas/BreakEndMate'
+    SimpleCoordinate:
+      description: A simple coordinate represents a sequence coordinate with a precise start and end and often both a reference sequence and a variant sequence
+      properties:
+        referenceSet:
+          required: true
+          description: The set the reference came from, probably the 'reference genome', e.g. 'grch38'.  FieldOptions(variants.referenceSets)
+          example: "grch38"
+          type: string
+        qualifiers:
+          type: array
+          description: "Set of qualifiers for this coordinate such as insertion, duplication, or deletion"
+          example: "[deletion]"
+          items:
+            type: string
+        reference:
+          type: string
+          required: true
+          description: The reference within the set, probably the chromosome within the referenceSet, e.g. '1' for 'chromosome 1', we do not expect the 'chr' prefix.  FieldOptions(variant.references.{referenceSet})"
+          example: "2"
+        referenceBases:
+          type: string
+          description: The sequence of the variant.
+          example: "ATCGT"
+          required: true
+        alternateBases:
+          description: The alternate sequence for this variant.
+          required: true
+          example: "T"
+          type: string
+        start:
+          type: number
+          description: The position the reference sequence starts.
+          required: true
+          example: "10000"
+        end:
+          type: number
+          required: true
+          description: The position the reference sequence stops (expected to be startPostion + len(referenceSequence)
+          example: "10001"
+    ImpreciseCoordinate:
+      description: "A sequence variant coordinate with a start and stop often defined as a confidence interval."
+      properties:
+        referenceSet:
+          description: "The reference genome used to represent this variant.  FieldOption('variants.referenceSets')"
+          required: true
+          example: "hg19"
+          type: string
+        qualifiers:
+          type: array
+          items:
+            type: string
+        reference:
+          required: true
+          description: The chromosome on the reference genome value.  FieldOption('variants.references.{referenceSet}')
+          example: "2"
+          type: string
+        start:
+          $ref: "#/components/schemas/ConfidenceRange"
+        end:
+          $ref: "#/components/schemas/ConfidenceRange"
+        referenceBases:
+          description: The reference sequence for for this coordinate.
+          type: string
+        alternateBases:
+          description: The alternate or variant sequence for for this coordinate.
+          type: string
+    ConfidenceRange:
+      description: This is a range of positions within a confidence interval"
+      properties:
+        position:
+          description: an estimated 'true' position, may often be expected halfway between cimin and cimax.
+          type: number
+        cimin:
+          description: the minimum possible position of the confidence interval"
+          required: true
+          type: number
+        cimax:
+          description: the maximum possible position of the confidence interval
+          required: true
+          type: number
+    BreakEndMate:
+      description: The mate of a breakend
+      properties:
+        orientation:
+          type: string
+          enum: ['THREE_PRIME, FIVE_PRIME']
+        reference:
+          type: string
+        joinOrientation:
+          type: string
+          example: "'THREE_PRIME' or 'FIVE_PRIME'"
+        sequenceOrientation:
+          type: string
+          example: "'THREE_PRIME' or 'FIVE_PRIME'"
+
+security:
+  - basicAuth: []
+
+paths:
+  /api/v1/fieldOptions:
+    get:
+      description: Get a list of all field options.
+      responses:
+        200:
+          description: If we were able to get the list of all field options.
+          content:
+            'application/json':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FieldOption'
+
+  /api/v1/fieldOptions/{id}:
+    get:
+      description: Get a specific field options.
+      responses:
+        200:
+          description: The selected field option is returned.
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/FieldOption'
+
+  /api/v1/curations/acmg-classification/query:
+
+    post:
+      tags:
+        - Curation Query
+        - ACMG Classification
+      description: Ability to query
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcmgClassificationQuery'
+      responses:
+        200:
+          description: Successfully performed the query and returned results.
+          content:
+            application/json:
+              schema:
+                description: A page of resulting AcmgClassification curations.
+                allOf:
+                  - $ref: '#/components/schemas/QueryResults'
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AcmgClassificationCuration'
+        400:
+          description: The query was somehow malformed or unaccaptable.
+        406:
+          description: The query was unacceptable.
+
+  /api/v1/curations/query:
+    post:
+      description: Use thie query for curations of any type.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CurationQuery'
+      responses:
+        200:
+          description: We performed the query successfully and it is attached.
+          content:
+            application/json:
+              schema:
+                description: A page of resulting Curation results
+                allOf:
+                  - $ref: '#/components/schemas/QueryResults'
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Curation'
+        400:
+          description: The query was somehow malformed or unaccaptable.
+        406:
+          description: The query was unacceptable.
+
+  /api/v1/curations/cgi-bin/query.gff3:
+    get:
+      description: |
+        This is is a very rich interface that allows you to submit an AcmgClassificationQuery along with multiple ways of
+        specifying parameters in they query you are sending and get results back in a GFF3 format.  There are multiple
+        ways to customize the 'type' field or any of the attributes that will come back (except ID which will always be the curation ID.
+
+        Query parameters need to be url encoded by the client in respect for the HTTP specification.
+
+        For both the query and for the response templates we use Apache FreeMarker https://freemarker.apache.org/docs/index.html.
+      parameters:
+        - name: query
+          description: |
+            A base64 encoded JSON representation of the AcmgClassificationQuery that we want to execute.  You can reference
+            that entity and build it in json format (possibly test against the basic POST query endpoint) and then encode
+            it using a tool such as https://www.base64encode.org.  The syntax is very picky and it is highly suggested that
+            IT is involved when first setting up a desired template query.  This is very powerful and you can basically
+            create any query you want to please enlist a developer in IT to assist setting this up or you can expect
+            difficulties.
+
+            For example the value: ewogICJxdWVyeVR5cGUiOiAiQWNtZ0NsYXNzaWZpY2F0aW9uIiwgCiAgInJlZmVyZW5jZVNldCI6IiR7cmVmZXJlbmNlc2V0fSIsCiAgInBvc2l0aW9uUmFuZ2UiOnsKICAJInJlZmVyZW5jZSI6IiR7cmVmZXJlbmNlfSIsCiAgCSJtaW5Qb3NpdGlvbiI6JHtzdGFydH0sCiAgCSJtYXhQb3NpdGlvbiI6JHtlbmR9CiAgfSwKICAiY29udGV4dCI6ewogICAgICAidmFsdWVzVG9NYXRjaCI6WyJBTlkiXQogIH0sCiAgImRlc2lyZWRWYXJpYW50VHlwZXMiOlsic2ltcGxlIl0KfQ==
+
+            is encoded from
+            {
+              "queryType": "AcmgClassification",
+              "referenceSet":"${referenceset}",
+              "positionRange":{
+              	"reference":"${reference}",
+              	"minPosition":${start},
+              	"maxPosition":${end}
+              },
+              "context":{
+                  "valuesToMatch":["ANY"]
+              },
+              "desiredVariantTypes":["simple"]
+            }
+          in: query
+          schema:
+            type: string
+            example: ewogICJxdWVyeVR5cGUiOiAiQWNtZ0NsYXNzaWZpY2F0aW9uIiwgCiAgInJlZmVyZW5jZVNldCI6IiR7cmVmZXJlbmNlc2V0fSIsCiAgInBvc2l0aW9uUmFuZ2UiOnsKICAJInJlZmVyZW5jZSI6IiR7cmVmZXJlbmNlfSIsCiAgCSJtaW5Qb3NpdGlvbiI6JHtzdGFydH0sCiAgCSJtYXhQb3NpdGlvbiI6JHtlbmR9CiAgfSwKICAiY29udGV4dCI6ewogICAgICAidmFsdWVzVG9NYXRjaCI6WyJBTlkiXQogIH0sCiAgImRlc2lyZWRWYXJpYW50VHlwZXMiOlsic2ltcGxlIl0KfQ==
+            required: true
+        - name: qparam
+          description: |
+            Any parameters that you specify in the query that we need to fill in.  In the query you may specify things like "${referenceset}" which
+            means we will be expecting a qparam of referenceset:hg19 for instance.  If we have ${variable} in your query you will have to specify an
+            appropriate qparam=variable:value.
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+            example: referenceset:hg19
+            required: false
+        - name: client-username
+          description: >
+            If your client does not support basic authentication you can specify a registered client here to represent yourself.
+            We use this to confirm you should have access to some resources but we do have a limitation that not all client's
+            such as Alamut support basic authentication.  This is required if you are not authenticating using basic authentication.
+          in: query
+          schema:
+            type: string
+            example: winte
+            required: false
+        - name: attribute
+          description: |
+            An optional set of values or template values to include as attributes.  The 'type' attribute is a special one that
+            is used to determine what we should populte the type value not a GFF3 attribute.
+
+            In the following example:
+            Note:${(curation.note)!"-"}
+
+            In this case was want to have a Note attribute that gets it's value from the curation.note with a default value of '-'
+            if there is not value for note.  It is important that default values are used for optional fields.
+
+            The attributes can be templates
+
+            We have the following default attributes:
+            * "ID:${curation.id}" which means the ID will always be set to the curation id and could be used to later get more information about the curation.  The ID cannot be overwritten.
+            * "type:${curation.conclusion}" which means the type field (not a gff3 attribute) will get its value from the conclusion (e.g. pathogenic, benign)
+            * "Name:${variant.alternateBases}(${curation.conclusion}) which means that the Name attribute will be the alternative sequence followed by the conclusion in paretheses.
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+            example: Note%3A%24%7B%28curation.note%29%21%22-%22%7D
+            required: false
+        - name: directive
+          description: |
+            One or more base64 encoded directives that will be added between the gff3 header and the content of the gff3.  This is only needed
+            if your client makes use of such directives like Alamut does.  In the following example we want alamut to color entries with a
+            type of 'pathogenic' as red.
+
+            ##alamut:type=pathogenic:color=255,0,0
+
+            becomes
+
+            IyNhbGFtdXQ6dHlwZT1wYXRob2dlbmljOmV4dExpbms9bGluazpjb2xvcj0yNTUsMCww
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+            example: IyNhbGFtdXQ6dHlwZT1wYXRob2dlbmljOmV4dExpbms9bGluazpjb2xvcj0yNTUsMCww
+            required: false
+        - name: context-filter
+          in: query
+          description: One or more filters that if specified ensure that at least of matches the context names that will be returned.  This must be a compilable regular expression.
+          example: "^assayGroup:.*"
+          schema:
+            type: array
+            items:
+              type: string
+            required: false
+        - name: stop-inclusive
+          description: >
+            Set to true if the stop position in considered inclusive.  If stop is inclusive then we will subtract 1 from
+            the end because MXD considers to stop to be exclusive and not part of the variant itself in line with the
+            VCF specification.  This should be set to true in alamut which expects the stop to be inclusive of the variant.
+          example: true
+          in: query
+          schema:
+            type: boolean
+            default: false
+
+      responses:
+        200:
+          description: Your response contains the results of your query.
+          content:
+            'text/gff3':
+              schema:
+                type: string
+                example: |
+                  ##gff-version 3
+                  ##sequence-region	5	112103002	112103003
+                  5	assay-group:capn@ngswb	pathogenic	112103002	112103002	.	.	.	ID=5d571922427bd53050f746a7;Name=T(pathogenic)
+                  5	assay:rasfp@ngswb	pathogenic	112103002	112103002	.	.	.	ID=5d571922427bd53050f746a7;Name=T(pathogenic)

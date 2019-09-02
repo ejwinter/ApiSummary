@@ -1,12 +1,15 @@
 package com.winteredge.apisum;
 
+import com.winteredge.apisum.entitytablesummary.ApiSummary;
 import com.winteredge.apisum.entitytablesummary.EntitySummarizer;
+import com.winteredge.apisum.entitytablesummary.EntitySummary;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import picocli.CommandLine;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 @CommandLine.Command(
         name="to-table",
@@ -28,6 +31,13 @@ public class GenerateTableSubcommand implements Runnable{
     )
     private Path path;
 
+    @CommandLine.Option(
+            names = {"--def-file", "-f"},
+            description = "The OpenAPI 3 YAML file we want to summarize.",
+            required = true
+    )
+    private Path output;
+
     @Override
     public void run() {
         logger.info("Summarizing {}", path);
@@ -37,7 +47,8 @@ public class GenerateTableSubcommand implements Runnable{
         }
 
         try {
-            entitySummarizer.summarize(path.toFile());
+            ApiSummary summary = entitySummarizer.summarize(path.toFile());
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
