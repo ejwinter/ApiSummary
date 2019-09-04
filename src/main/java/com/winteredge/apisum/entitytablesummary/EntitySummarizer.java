@@ -104,7 +104,7 @@ public class EntitySummarizer {
             }else if(schema.getItemsSchema().getName() != null){
                 summary.setType(String.format("%s list", schema.getItemsSchema().getName()));
             }else{
-                summary.setType("[]");
+                summary.setType(String.format("%s list", schema.getName()));
             }
 
             if(!schema.getItemsSchema().getProperties().isEmpty()){
