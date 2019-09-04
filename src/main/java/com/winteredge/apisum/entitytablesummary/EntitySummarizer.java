@@ -4,15 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.reprezen.kaizen.oasparser.OpenApi3Parser;
 import com.reprezen.kaizen.oasparser.model3.OpenApi3;
+import com.reprezen.kaizen.oasparser.model3.Path;
 import com.reprezen.kaizen.oasparser.model3.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class EntitySummarizer {
@@ -29,7 +27,24 @@ public class EntitySummarizer {
                 .map(entry -> summarizeEntity(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toMap(EntitySummary::getName, s -> s, (v1, v2) -> v2, LinkedHashMap::new));
         fleshoutParentProperties(summaries, summaries);
-        return new ApiSummary(openApi.getInfo().getTitle(), openApi.getInfo().getDescription(), summaries);
+
+        ApiSummary summary = new ApiSummary(openApi.getInfo().getTitle(), openApi.getInfo().getDescription(), summaries);
+
+        if(openApi.getPaths() != null && !openApi.getPaths().isEmpty()){
+            summary.setEndpointSummaries(summarizeEndPoints(openApi.getPaths()));
+        }
+        return summary;
+    }
+
+    private List<EndpointSummary> summarizeEndPoints(Map<String, Path> paths) {
+        return paths.entrySet().stream()
+                .flatMap(pathEntry -> {
+                    return pathEntry.getValue().getOperations().entrySet().stream()
+                            .map(operation -> {
+                                return new EndpointSummary(operation.getValue().getDescription(), operation.getKey(), pathEntry.getKey());
+                            });
+                })
+                .collect(Collectors.toList());
     }
 
     private void fleshoutParentProperties(Map<String, EntitySummary> summaries, Map<String, EntitySummary> topLevel) {

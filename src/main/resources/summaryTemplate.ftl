@@ -165,27 +165,33 @@
 
     </section>
 
+    <#if root.endpointSummaries??>
+
     <section class="endPointDefinition">
     <h2>End Point Definitions</h2>
     <table>
         <thead>
             <tr>
-                <th>Title</th>
-                <th>URL</th>
-                <th>Method</th>
                 <th>Description</th>
+                <th>Method</th>
+                <th>URL</th>
             </tr>
         </thead>
 
         <tbody>
+            <#list root.endpointSummaries as endpoint>
             <tr>
-                <td>Classification Query</td>
-                <td>/api/v1/curations/acmg-classification/query</td>
-                <td>POST</td>
-                <td>Perform Query for Variant Classifications.</td>
+                <td>
+                    <#assign description = endpoint.description?replace("(\n)+", "<br/>",'r')>
+                    <div>${description?no_esc}</div>
+                </td>
+                <td>${endpoint.url}</td>
+                <td>${endpoint.method}</td>
             </tr>
+            </#list>
         </tbody>
     </table>
     </section>
+    </#if>
 </body>
 </html>
