@@ -168,9 +168,17 @@ components:
           description: When this curation was revoked (if) and by whom.
           properties:
             who:
+              description: An ID (lanid) of the person who performed this action.
+              required: true
+              type: string
+            name:
+              description: The name of the person who left the message, if a availble can make the information easier to use.
+              required: false
               type: string
             when:
+              description: When the action was performed.
               type: string
+              required: true
               format: 'date-time'
               example: '2018-12-12T05:21:21-0500'
         created:

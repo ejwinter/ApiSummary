@@ -87,25 +87,29 @@ public class EntitySummarizer {
         }
 
         Map<String, EntitySummary> properties = new HashMap<>();
-        if(schema.getAdditionalPropertiesSchema()!=null && schema.getAdditionalPropertiesSchema().getName() != null){
-            summary.setType(String.format("Dictionary<string,%s>", schema.getAdditionalPropertiesSchema().getName()));
+        if(schema.getAdditionalPropertiesSchema()!=null){
+            if(schema.getAdditionalPropertiesSchema().getName() != null) {
+                summary.setType(String.format("Dictionary[string,%s]", schema.getAdditionalPropertiesSchema().getName()));
+            }else if(schema.getAdditionalPropertiesSchema().getType() != null){
+                summary.setType(String.format("Dictionary[string,%s]", schema.getAdditionalPropertiesSchema().getType()));
+            }
             Map<String, EntitySummary> propertySummaries = schema.getAdditionalPropertiesSchema().getProperties().values().stream()
-                    .collect(Collectors.toMap(p -> p.getName(), p -> summarizeProperty(p)));
+                    .collect(Collectors.toMap(Schema::getName, this::summarizeProperty));
             properties.putAll(propertySummaries);
         }
 
         if ("array".equals(summary.getType())) {
             if(schema.getItemsSchema().getType() != null){
-                summary.setType(String.format("%s[]", schema.getItemsSchema().getType()));
+                summary.setType(String.format("%s list", schema.getItemsSchema().getType()));
             }else if(schema.getItemsSchema().getName() != null){
-                summary.setType(String.format("%s[]", schema.getItemsSchema().getName()));
+                summary.setType(String.format("%s list", schema.getItemsSchema().getName()));
             }else{
                 summary.setType("[]");
             }
 
             if(!schema.getItemsSchema().getProperties().isEmpty()){
                 Map<String, EntitySummary> propertySummaries = schema.getItemsSchema().getProperties().values().stream()
-                        .collect(Collectors.toMap(p -> p.getName(), p -> summarizeProperty(p)));
+                        .collect(Collectors.toMap(Schema::getName, this::summarizeProperty));
                 properties.putAll(propertySummaries);
             }
         }

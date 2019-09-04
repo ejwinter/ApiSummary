@@ -60,6 +60,20 @@
             padding: 2px 8px;
             border-radius: 5px;
         }
+
+        table td {
+            vertical-align: top;
+        }
+
+        .required {
+            color: #CC0000;
+        }
+
+        section.entityDefinitions section.definition {
+            margin-bottom: 2em;
+            border: 2px solid #444444;
+
+        }
     </style>
 </head>
 
@@ -74,7 +88,8 @@
                 <div><b>Description:</b></div>
             </div>
             <div>
-                ${entity.description}
+                <#assign description = entity.description?replace("(\n)+", "<br/>",'r')>
+                ${description?no_esc}
             </div>
         </#if>
         <table>
@@ -90,12 +105,22 @@
                 <#list entity.properties as key, property>
                     <tr>
                         <td>
+                            <div class="propertyName">
                             ${key}
+                            </div>
+
+                            <div class="propertyType">
                             <#if property.type??>
                                 (${property.type})
                             <#else>
                                 (object)
                             </#if>
+                            </div>
+                            <div class="required">
+                                <#if property.required>
+                                    *required
+                                </#if>
+                            </div>
                         </td>
 
                         <td>
@@ -106,7 +131,8 @@
 
                         <td>
                             <#if property.description??>
-                                <div>${property.description}</div>
+                                <#assign description = property.description?replace("(\n)+", "<br/>",'r')>
+                                <div>${description?no_esc}</div>
                             </#if>
                             <#if property.properties??>
                                 <#if (property.properties)?size!=0 >
@@ -123,16 +149,23 @@
         </table>
     </#macro>
 
-    <h1>${root.title}</h1>
-    <p>${root.description}</p>
+    <section class="header">
+        <h1>${root.title}</h1>
+        <p>${root.description}</p>
+    </section>
 
+    <section class="entityDefinitions">
     <h2>Entity Definitions</h2>
-    <#assign entitySummaries = root.entitySummaries>
-    <#list entitySummaries as key, entitySummary>
-        <@summarizeEntity name=key entity=entitySummary>
-        </@summarizeEntity>
-    </#list>
+            <#assign entitySummaries = root.entitySummaries>
+            <#list entitySummaries as key, entitySummary>
+                <section class="definition">
+                    <@summarizeEntity name=key entity=entitySummary/>
+                </section>
+            </#list>
 
+    </section>
+
+    <section class="endPointDefinition">
     <h2>End Point Definitions</h2>
     <table>
         <thead>
@@ -153,6 +186,6 @@
             </tr>
         </tbody>
     </table>
-
+    </section>
 </body>
 </html>
